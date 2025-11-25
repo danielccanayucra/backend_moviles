@@ -1,12 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException
+import os
+import uuid
+from fastapi import APIRouter, Depends, UploadFile, File, HTTPException
 from sqlalchemy.orm import Session
 from typing import List
 from app.api.deps import get_db, require_role, get_current_user
 from app.models.user import UserRole, User
 from app.models.residence import Residence
 from app.schemas.residence import ResidenceCreate, ResidenceOut, ResidenceUpdate
+from app.core.config import settings
 
 router = APIRouter()
+MEDIA_ROOT = "media"
+RESIDENCES_MEDIA_ROOT = os.path.join(MEDIA_ROOT, "residences")
 
 @router.post("/", response_model=ResidenceOut)
 def create_residence(data: ResidenceCreate, db: Session = Depends(get_db), current=Depends(require_role(UserRole.OWNER, UserRole.SUPERADMIN))):
@@ -20,7 +25,52 @@ def create_residence(data: ResidenceCreate, db: Session = Depends(get_db), curre
 def list_residences(db: Session = Depends(get_db)):
     items = db.query(Residence).all()
     return [ResidenceOut(id=i.id, owner_id=i.owner_id, name=i.name, description=i.description, address=i.address, district=i.district, city=i.city, latitude=i.latitude, longitude=i.longitude) for i in items]
+@router.post("/{residence_id}/image-url", response_model=ResidenceOut)
+async def upload_residence_main_image(
+    residence_id: int,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    current_user = Depends(require_role(UserRole.OWNER, UserRole.SUPERADMIN)),
+):
+    # 1) Validar que sea una imagen
+    if not file.content_type or not file.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="Solo se permiten archivos de imagen")
 
+    # 2) Buscar residencia
+    residence = db.query(Residence).get(residence_id)
+    if not residence:
+        raise HTTPException(status_code=404, detail="Residencia no encontrada")
+
+    # (Opcional) verificar que el owner sea dueño de esa residencia
+    # if current_user.role == UserRole.OWNER and residence.owner_id != current_user.id:
+    #     raise HTTPException(status_code=403, detail="No puedes modificar esta residencia")
+
+    # 3) Asegurar carpeta
+    os.makedirs(RESIDENCES_MEDIA_ROOT, exist_ok=True)
+
+    # 4) Generar nombre único
+    ext = os.path.splitext(file.filename or "")[1].lower()
+    if not ext:
+        ext = ".jpg"
+
+    filename = f"res_{residence_id}_{uuid.uuid4().hex}{ext}"
+    file_path = os.path.join(RESIDENCES_MEDIA_ROOT, filename)
+
+    # 5) Guardar archivo
+    with open(file_path, "wb") as f:
+        f.write(await file.read())
+
+    # 6) Construir URL pública
+    base_url = settings.BASE_URL.rstrip("/")
+    public_url = f"{base_url}/media/residences/{filename}"
+
+    # 7) Guardar en BD
+    residence.main_image = public_url
+    db.add(residence)
+    db.commit()
+    db.refresh(residence)
+
+    return residence
 @router.get("/{residence_id}", response_model=ResidenceOut)
 def get_residence(residence_id: int, db: Session = Depends(get_db)):
     res = db.query(Residence).get(residence_id)
