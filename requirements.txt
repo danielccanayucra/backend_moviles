@@ -1,0 +1,15 @@
+fastapi==0.115.5
+uvicorn[standard]==0.32.0
+python-dotenv==1.0.1
+passlib[bcrypt]==1.7.4
+PyJWT==2.9.0
+pydantic==2.9.2
+pydantic-settings==2.6.1
+SQLAlchemy==2.0.36
+alembic==1.13.2
+email-validator==2.2.0
+bcrypt==4.2.0
+pymysql==1.1.1
+psycopg[binary]==3.2.3
+python-multipart==0.0.17
+reportlab
