@@ -112,6 +112,8 @@ async def upload_profile_picture(
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
+        print("DEBUG BASE_URL =>", settings.BASE_URL)
+
     # URL pública completa
     base_url = settings.BASE_URL.rstrip("/")
     public_url = f"{base_url}/media/users/{file_name}"
