@@ -64,7 +64,7 @@ async def upload_profile_picture(
     ...
 
     # Ruta física
-    file_path = os.path.join(USERS_MEDIA_ROOT, filename())
+    file_path = os.path.join(USERS_MEDIA_ROOT, filename)
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
