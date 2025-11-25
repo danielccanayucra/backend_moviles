@@ -51,6 +51,22 @@ def update_user(
     db.refresh(user)
     return user
 
+@router.put("/me", response_model=UserOut)
+def update_me(
+    update_data: UserUpdate,
+    db: Session = Depends(get_db),
+    current=Depends(get_current_user),
+):
+    user = db.query(User).get(current.id)
+
+    for field, value in update_data.model_dump(exclude_unset=True).items():
+        setattr(user, field, value)
+
+    db.commit()
+    db.refresh(user)
+    return user
+
+
 
 @router.delete("/{user_id}")
 def delete_user(
@@ -66,22 +82,6 @@ def delete_user(
     db.commit()
 
     return {"detail": "Usuario eliminado correctamente"}
-
-
-@router.put("/me", response_model=UserOut)
-def update_me(
-    update_data: UserUpdate,
-    db: Session = Depends(get_db),
-    current=Depends(get_current_user),
-):
-    user = db.query(User).get(current.id)
-
-    for field, value in update_data.model_dump(exclude_unset=True).items():
-        setattr(user, field, value)
-
-    db.commit()
-    db.refresh(user)
-    return user
 
 
 # -------------------------------------------------------
