@@ -1,3 +1,4 @@
+from fileinput import filename
 from typing import List, Optional
 import os
 import uuid
@@ -6,6 +7,8 @@ from sqlalchemy.orm import Session
 from app.api.deps import get_db, get_current_user, require_role
 from app.schemas.user import UserOut, UserUpdate
 from app.models.user import User, UserRole
+from app.core.config import settings  # asegúrate de tener BASE_URL en settings
+
 
 router = APIRouter()
 
@@ -58,28 +61,17 @@ async def upload_profile_picture(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    # Validar tipo de archivo
-    if not file.content_type or not file.content_type.startswith("image/"):
-        raise HTTPException(status_code=400, detail="Solo se permiten archivos de imagen")
-
-    # Asegurar carpeta
-    os.makedirs(USERS_MEDIA_ROOT, exist_ok=True)
-
-    # Generar nombre de archivo único
-    ext = os.path.splitext(file.filename)[1].lower() if file.filename else ".jpg"
-    filename = f"user_{current_user.id}_{uuid.uuid4().hex}{ext}"
+    ...
 
     # Ruta física
-    file_path = os.path.join(USERS_MEDIA_ROOT, filename)
-
-    # Guardar archivo
+    file_path = os.path.join(USERS_MEDIA_ROOT, filename())
     with open(file_path, "wb") as f:
         f.write(await file.read())
 
-    # URL pública (sirves "media" en "/media")
-    public_url = f"/media/users/{filename}"
+    # 👇 URL pública COMPLETA
+    base_url = settings.BASE_URL.rstrip("/")  # ej: https://backend-moviles-48b9.onrender.com
+    public_url = f"{base_url}/media/users/{filename}"
 
-    # Actualizar usuario
     current_user.profile_picture = public_url
     db.add(current_user)
     db.commit()
